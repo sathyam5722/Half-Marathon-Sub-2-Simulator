@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Half Marathon Sub-2 Simulator</title>
+<style>
+  :root{
+    --paper:#e8ecf3; --white:#ffffff; --ink:#0e1526; --soft:#5b6780; --rule:#cfd6e4;
+    --cobalt:#2340ff; --cobalt-soft:#dfe4ff; --flag:#ff5a1f; --go:#0f9d57; --caution:#e8a400;
+    --num:"Bahnschrift","DIN Condensed","Oswald","Arial Narrow",Impact,"Haettenschweiler",sans-serif;
+    --body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);line-height:1.5}
+  button,input{font:inherit;color:inherit}
+  :focus-visible{outline:3px solid var(--cobalt);outline-offset:2px}
+  .page{max-width:1160px;margin:0 auto;padding:28px 22px 56px}
+
+  /* header */
+  .top{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center;margin-bottom:26px}
+  .brand h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.01em}
+  .brand p{margin:2px 0 0;color:var(--soft);font-size:14px}
+  .tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .toggle{display:inline-flex;background:var(--white);border:1px solid var(--rule);border-radius:999px;padding:3px}
+  .toggle button{border:0;background:transparent;padding:7px 14px;border-radius:999px;font-weight:600;font-size:13px;color:var(--soft);cursor:pointer}
+  .toggle button[aria-pressed=true]{background:var(--ink);color:#fff}
+  .ghost{background:transparent;border:1px solid var(--ink);border-radius:999px;padding:8px 16px;font-weight:600;font-size:13px;cursor:pointer}
+  .ghost:hover{background:var(--ink);color:#fff}
+
+  .layout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:34px;align-items:start}
+  @media(max-width:920px){.layout{grid-template-columns:1fr}}
+
+  /* controls */
+  .controls{background:var(--white);border-radius:6px 26px 6px 26px;padding:26px 24px;position:sticky;top:16px}
+  @media(max-width:920px){.controls{position:static}}
+  .controls h2{margin:0 0 4px;font-size:17px}
+  .controls .hint{margin:0 0 16px;color:var(--soft);font-size:13px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:22px}
+  .chip{border:1px solid var(--rule);background:var(--paper);border-radius:8px;padding:6px 11px;font-size:13px;font-weight:600;cursor:pointer}
+  .chip:hover{border-color:var(--cobalt);color:var(--cobalt)}
+  .ctl{margin-bottom:22px}
+  .ctl .row{display:flex;justify-content:space-between;align-items:baseline}
+  .ctl label{font-weight:700;font-size:14px}
+  .ctl output{font-family:var(--num);font-size:26px;font-weight:700;color:var(--cobalt);letter-spacing:.01em}
+  .ctl .note{font-size:12.5px;color:var(--soft);margin-top:6px}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:4px 0 0;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:99px;background:linear-gradient(to right,var(--cobalt) var(--p,50%),var(--rule) var(--p,50%))}
+  input[type=range]::-moz-range-track{height:8px;border-radius:99px;background:var(--rule)}
+  input[type=range]::-moz-range-progress{height:8px;border-radius:99px;background:var(--cobalt)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;border:4px solid var(--cobalt);margin-top:-8px;box-shadow:0 2px 6px rgba(14,21,38,.25)}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:4px solid var(--cobalt)}
+  .ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--soft);padding:0 2px}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;border-top:1px solid var(--rule);padding-top:18px}
+  .pair label{font-size:12.5px;color:var(--soft);font-weight:600}
+  .pair input{width:100%;margin-top:4px;border:1px solid var(--rule);border-radius:8px;padding:9px 10px;background:var(--paper);font-size:16px;font-weight:700}
+  .pair input.bad{border-color:var(--flag)}
+
+  /* bib */
+  .bib{background:var(--white);border-radius:10px;position:relative;overflow:hidden;box-shadow:0 1px 0 var(--rule),0 18px 40px -22px rgba(14,21,38,.35)}
+  .bib::before,.bib::after{content:"";position:absolute;top:12px;width:12px;height:12px;border-radius:50%;background:var(--paper);box-shadow:inset 0 1px 2px rgba(14,21,38,.3);z-index:2}
+  .bib::before{left:14px}.bib::after{right:14px}
+  .bib-head{background:var(--cobalt);color:#fff;padding:12px 44px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-weight:700;font-size:14px}
+  .bib.hit .bib-head{background:var(--go)}
+  .bib.miss .bib-head{background:var(--flag)}
+  .bib-body{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px;padding:22px 28px 26px;align-items:end}
+  @media(max-width:700px){.bib-body{grid-template-columns:1fr}}
+  .time{font-family:var(--num);font-weight:800;font-size:clamp(68px,11vw,128px);line-height:.95;letter-spacing:.005em;font-variant-numeric:tabular-nums}
+  .time-lbl{color:var(--soft);font-size:14px;font-weight:600;margin-bottom:4px}
+  .verdict{margin:10px 0 0;font-size:16px;font-weight:600}
+  .verdict b{font-weight:800}
+  .bib.hit .verdict b{color:var(--go)} .bib.miss .verdict b{color:var(--flag)}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .kpi{padding:10px 0 10px 16px;border-left:1px solid var(--rule);margin-bottom:6px}
+  .kpi .k{font-size:12.5px;color:var(--soft);font-weight:600}
+  .kpi .v{font-family:var(--num);font-size:30px;font-weight:700;line-height:1.15}
+  .kpi .n{font-size:12px;color:var(--soft)}
+
+  /* ruler */
+  .ruler-wrap{margin:34px 0 8px}
+  .ruler-wrap h3,.sec h3{margin:0 0 4px;font-size:17px}
+  .ruler-wrap .sub,.sec .sub{margin:0 0 18px;color:var(--soft);font-size:13.5px}
+  .ruler{position:relative;height:96px}
+  .road{position:absolute;left:0;right:0;top:34px;height:26px;background:var(--ink);border-radius:4px}
+  .road::after{content:"";position:absolute;left:8px;right:8px;top:12px;height:2px;background:repeating-linear-gradient(to right,#fff 0 14px,transparent 14px 28px);opacity:.55}
+  .done{position:absolute;top:34px;height:26px;background:var(--cobalt);border-radius:4px;z-index:1;transition:left .25s,width .25s}
+  .done::after{content:"";position:absolute;inset:12px 8px auto 8px;height:2px;background:repeating-linear-gradient(to right,#fff 0 14px,transparent 14px 28px);opacity:.8}
+  .tick{position:absolute;top:60px;width:1px;height:7px;background:var(--soft);opacity:.5}
+  .mk{position:absolute;transform:translateX(-50%);text-align:center;font-size:12px;font-weight:700;white-space:nowrap;z-index:2;transition:left .25s}
+  .mk span{display:block;font-family:var(--num);font-size:20px;line-height:1}
+  .mk.up{top:0}.mk.down{top:68px}
+  .pin{position:absolute;top:28px;width:3px;height:38px;transform:translateX(-50%);z-index:3;transition:left .25s}
+  .pin.goal{background:var(--flag)}
+  .pin.now{background:var(--soft)}
+  .runner{position:absolute;top:30px;width:22px;height:22px;transform:translateX(-50%);border-radius:50%;background:#fff;border:5px solid var(--cobalt);z-index:4;transition:left .25s;box-shadow:0 2px 8px rgba(14,21,38,.4)}
+  .mk.goal{color:var(--flag)} .mk.race{color:var(--cobalt)} .mk.now{color:var(--soft)}
+  .ruler-end{display:flex;justify-content:space-between;font-size:11.5px;color:var(--soft);margin-top:2px}
+
+  /* charts */
+  .duo{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:36px;margin-top:34px}
+  @media(max-width:920px){.duo{grid-template-columns:1fr}}
+  .sec{border-top:3px solid var(--ink);padding-top:14px}
+  .chart{position:relative}
+  .chart svg{width:100%;height:auto;display:block;touch-action:none}
+  .tip{position:absolute;pointer-events:none;background:var(--ink);color:#fff;font-size:12.5px;padding:7px 10px;border-radius:6px;transform:translate(-50%,-120%);white-space:nowrap;opacity:0;transition:opacity .1s;z-index:5}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--soft);margin-top:6px}
+  .legend i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:6px}
+  .rows{display:grid;gap:8px}
+  .rowbtn{display:grid;grid-template-columns:62px 1fr 78px;gap:12px;align-items:center;background:transparent;border:1px solid transparent;border-radius:8px;padding:8px 10px;text-align:left;cursor:pointer;width:100%}
+  .rowbtn:hover{background:var(--white)}
+  .rowbtn[aria-pressed=true]{background:var(--white);border-color:var(--ink)}
+  .rowbtn .nm{font-weight:700;font-size:14px}
+  .bar{position:relative;height:16px;background:var(--rule);border-radius:4px;overflow:visible}
+  .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;transition:width .25s}
+  .bar u{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--ink);text-decoration:none}
+  .rowbtn .tm{font-family:var(--num);font-size:20px;font-weight:700;text-align:right}
+  .rowbtn .st{grid-column:2 / 4;font-size:12px;color:var(--soft);margin-top:-4px}
+
+  .reads{margin-top:34px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:26px}
+  @media(max-width:820px){.reads{grid-template-columns:1fr;gap:16px}}
+  .read{border-left:4px solid var(--cobalt);padding-left:14px}
+  .read h4{margin:0 0 4px;font-size:15.5px}
+  .read p{margin:0;color:var(--soft);font-size:14px}
+  .fine{margin-top:30px;color:var(--soft);font-size:12.5px;max-width:78ch}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <div class="brand">
+      <h1>Half Marathon Sub-2 Simulator</h1>
+      <p>Move the sliders and see whether your plan gets you under two hours.</p>
+    </div>
+    <div class="tools">
+      <div class="toggle" role="group" aria-label="Distance unit">
+        <button id="uMi" aria-pressed="true">Miles</button>
+        <button id="uKm" aria-pressed="false">Kilometers</button>
+      </div>
+      <button class="ghost" id="exportBtn">Export plan</button>
+      <button class="ghost" id="resetBtn">Reset</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="controls" aria-label="Training plan controls">
+      <h2>Your plan</h2>
+      <p class="hint">Start from a preset, then fine-tune.</p>
+      <div class="chips">
+        <button class="chip" data-p="12,3,0">Easy build</button>
+        <button class="chip" data-p="16,4,1">Balanced</button>
+        <button class="chip" data-p="20,5,2">All in</button>
+      </div>
+
+      <div class="ctl">
+        <div class="row"><label for="weeks">Weeks until race</label><output id="vWeeks"></output></div>
+        <input type="range" id="weeks" min="4" max="24" step="1" value="10">
+        <div class="ticks"><span>4</span><span>14</span><span>24</span></div>
+        <div class="note">More weeks help, but each week adds a little less.</div>
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="runs">Runs per week</label><output id="vRuns"></output></div>
+        <input type="range" id="runs" min="2" max="6" step="1" value="3">
+        <div class="ticks"><span>2</span><span>4</span><span>6</span></div>
+        <div class="note" id="restNote"></div>
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="speed">Speed workouts per week</label><output id="vSpeed"></output></div>
+        <input type="range" id="speed" min="0" max="3" step="1" value="1">
+        <div class="ticks"><span>0</span><span>1</span><span>2</span><span>3</span></div>
+        <div class="note">Intervals and tempo runs. They build speed fast and raise injury risk.</div>
+      </div>
+
+      <div class="pair">
+        <div><label for="cur">Pace now (min:sec per mile)</label><input id="cur" value="10:45" inputmode="numeric"></div>
+        <div><label for="goal">Goal time (h:mm:ss)</label><input id="goal" value="2:00:00" inputmode="numeric"></div>
+      </div>
+    </aside>
+
+    <main>
+      <section class="bib" id="bib" aria-live="polite">
+        <div class="bib-head"><span id="bibTag">Projected finish</span><span>Half marathon · 13.1 mi · 21.1 km</span></div>
+        <div class="bib-body">
+          <div>
+            <div class="time-lbl">You would finish in</div>
+            <div class="time" id="finish">0:00:00</div>
+            <p class="verdict" id="verdict"></p>
+          </div>
+          <div class="kpis">
+            <div class="kpi"><div class="k">Race-day pace</div><div class="v" id="kPace"></div><div class="n" id="kPaceN"></div></div>
+            <div class="kpi"><div class="k">Pace you gain</div><div class="v" id="kRed"></div><div class="n" id="kRedN"></div></div>
+            <div class="kpi"><div class="k">Gain needed each week</div><div class="v" id="kNeed"></div><div class="n" id="kNeedN"></div></div>
+            <div class="kpi"><div class="k">Injury risk</div><div class="v" id="kRisk"></div><div class="n" id="kRiskN"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="ruler-wrap" aria-label="Pace ruler">
+        <h3>Where your pace lands</h3>
+        <p class="sub">Faster is to the right. The blue stretch is the pace you gain by race day.</p>
+        <div class="ruler" id="ruler"></div>
+        <div class="ruler-end"><span>Slower</span><span>Faster</span></div>
+      </section>
+
+      <div class="duo">
+        <section class="sec">
+          <h3>Pace, week by week</h3>
+          <p class="sub">Hover or tap the line to read any week.</p>
+          <div class="chart" id="lineWrap"><div id="lineChart"></div><div class="tip" id="tip"></div></div>
+          <div class="legend"><span><i style="border-color:var(--cobalt)"></i>Projected pace</span><span><i style="border-color:var(--flag);border-top-style:dashed"></i>Goal pace</span><span><i style="border-color:#9aa6bf;border-top-style:dashed"></i>Straight line to goal</span></div>
+        </section>
+        <section class="sec">
+          <h3>Compare run counts</h3>
+          <p class="sub">Same weeks and speed work. Pick a row to try it.</p>
+          <div class="rows" id="rows"></div>
+        </section>
+      </div>
+
+      <section class="reads" aria-label="What this means">
+        <div class="read"><h4 id="i1t"></h4><p id="i1b"></p></div>
+        <div class="read"><h4 id="i2t"></h4><p id="i2b"></p></div>
+        <div class="read"><h4 id="i3t"></h4><p id="i3b"></p></div>
+      </section>
+
+      <p class="fine">How it works: each week you gain 5 seconds per mile × a runs factor × a speed factor × 0.93 to the power of the week number, so gains shrink over time. Runs factor: 2→0.6, 3→1.0, 4→1.3, 5→1.5, 6→1.45 (fatigue). Speed factor: 0→1.0, 1→1.25, 2→1.4, 3→1.45. Injury load = runs + 1.5 × speed workouts (low up to 5, moderate up to 7, high above 7). This is a planning aid, not medical or coaching advice.</p>
+    </main>
+  </div>
+</div>
+
+<script>
+/* ===== MODEL (pure functions) ===== */
+const HM_MI = 13.1094, HM_KM = 21.0975;
+const RF = {2:0.6,3:1.0,4:1.3,5:1.5,6:1.45};
+const SF = {0:1.0,1:1.25,2:1.4,3:1.45};
+const BASE = 5, DECAY = 0.93;
+
+function weekGain(w, runs, speed){ return BASE * RF[runs] * SF[speed] * Math.pow(DECAY, w); }
+function simulate(weeks, runs, speed, curSec){
+  const p=[curSec];
+  for(let w=0; w<weeks; w++) p.push(p[w] - weekGain(w, runs, speed));
+  return p;
+}
+function injuryLoad(runs, speed){ return runs + 1.5*speed; }
+function riskInfo(l){ return l<=5 ? ['Low','var(--go)'] : l<=7 ? ['Moderate','var(--caution)'] : ['High','var(--flag)']; }
+
+/* ===== HELPERS ===== */
+const $ = id => document.getElementById(id);
+const KM_PER_MI = 1.609344;
+let unit = 'mi';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function parsePace(s){ const m=s.trim().split(':').map(Number); return (m.length===2 && !m.some(isNaN) && m[1]<60 && m[0]>0) ? m[0]*60+m[1] : null; }
+function parseTime(s){ const m=s.trim().split(':').map(Number); if(m.some(isNaN)||m.length<2||m.length>3) return null;
+  const t = m.length===3 ? m[0]*3600+m[1]*60+m[2] : m[0]*60+m[1]; return t>0 ? t : null; }
+const conv = s => unit==='mi' ? s : s/KM_PER_MI;
+function mmss(sec){ const t=Math.round(sec); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); }
+const fmtPace = sec => mmss(conv(sec));
+function hms(sec){ sec=Math.round(sec); const h=Math.floor(sec/3600), m=Math.floor(sec%3600/60), s=sec%60;
+  return h+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
+function words(sec){ sec=Math.round(Math.abs(sec)); const m=Math.floor(sec/60), s=sec%60;
+  return m ? `${m} min ${String(s).padStart(2,'0')} s` : `${s} s`; }
+const per = () => unit==='mi' ? 'per mile' : 'per km';
+
+/* ===== STATE ===== */
+const DEFAULTS = {weeks:10, runs:3, speed:1, cur:'10:45', goal:'2:00:00'};
+function state(){
+  const c = parsePace($('cur').value), g = parseTime($('goal').value);
+  $('cur').classList.toggle('bad', c===null); $('goal').classList.toggle('bad', g===null);
+  const cur = c ?? 645, goalT = g ?? 7200;
+  return {weeks:+$('weeks').value, runs:+$('runs').value, speed:+$('speed').value, cur, goalT, goalPace:goalT/HM_MI};
+}
+function fillSlider(el){ el.style.setProperty('--p', ((el.value-el.min)/(el.max-el.min)*100)+'%'); }
+
+/* ===== animated finish time ===== */
+let shown = null, raf = 0;
+function setFinish(target){
+  const el = $('finish');
+  if(reduce || shown===null){ shown=target; el.textContent=hms(target); return; }
+  cancelAnimationFrame(raf);
+  const from=shown, t0=performance.now(), dur=260;
+  const step = now => { const k=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-k,3);
+    shown = from+(target-from)*e; el.textContent=hms(shown); if(k<1) raf=requestAnimationFrame(step); };
+  raf=requestAnimationFrame(step);
+}
+
+/* ===== PACE RULER ===== */
+function renderRuler(s, race){
+  const lo=Math.min(s.goalPace,race,s.cur)-12, hi=Math.max(s.goalPace,race,s.cur)+12;
+  const pos = p => (hi-p)/(hi-lo)*100;
+  const xn=pos(s.cur), xr=pos(race), xg=pos(s.goalPace);
+  let ticks='';
+  for(let p=Math.ceil(lo/15)*15; p<=hi; p+=15) ticks+=`<div class="tick" style="left:${pos(p)}%"></div>`;
+  $('ruler').innerHTML = ticks +
+    `<div class="road"></div>` +
+    `<div class="done" style="left:${xn}%;width:${Math.max(0,xr-xn)}%"></div>` +
+    `<div class="pin now" style="left:${xn}%"></div><div class="pin goal" style="left:${xg}%"></div>` +
+    `<div class="runner" style="left:${xr}%"></div>` +
+    `<div class="mk up race" style="left:${xr}%"><span>${fmtPace(race)}</span>Race day</div>` +
+    `<div class="mk down now" style="left:${xn}%"><span>${fmtPace(s.cur)}</span>Now</div>` +
+    `<div class="mk down goal" style="left:${xg}%"><span>${fmtPace(s.goalPace)}</span>Goal</div>`;
+}
+
+/* ===== LINE CHART ===== */
+let geo=null;
+function renderLine(s, path){
+  const W=620,H=300,L=50,R=16,T=16,B=36;
+  const vals=path.map(conv).concat([conv(s.goalPace)]);
+  const ymin=Math.min(...vals)-8, ymax=Math.max(...vals)+8;
+  const x=i=>L+(W-L-R)*i/s.weeks, y=v=>T+(H-T-B)*(1-(v-ymin)/(ymax-ymin));
+  let grid='';
+  for(let k=0;k<=4;k++){ const v=ymin+(ymax-ymin)*k/4, yy=y(v);
+    grid+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="#d8deea"/><text x="${L-8}" y="${yy+4}" fill="#5b6780" font-size="12" text-anchor="end">${mmss(v)}</text>`; }
+  const step=Math.max(1,Math.ceil(s.weeks/8));
+  for(let i=0;i<=s.weeks;i+=step) grid+=`<text x="${x(i)}" y="${H-14}" fill="#5b6780" font-size="12" text-anchor="middle">${i}</text>`;
+  grid+=`<text x="${(L+W-R)/2}" y="${H-1}" fill="#5b6780" font-size="11" text-anchor="middle">weeks from now</text>`;
+  const gy=y(conv(s.goalPace));
+  const d=path.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+','+y(conv(v)).toFixed(1)).join(' ');
+  const end=path[path.length-1], hit=end<=s.goalPace;
+  geo={W,L,R,x,y,weeks:s.weeks,path,s};
+  $('lineChart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" id="lsvg" role="img" aria-label="Projected pace by week">
+    <defs><linearGradient id="ga" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#2340ff" stop-opacity=".18"/><stop offset="1" stop-color="#2340ff" stop-opacity="0"/></linearGradient></defs>
+    ${grid}
+    <line x1="${x(0)}" y1="${y(conv(s.cur))}" x2="${x(s.weeks)}" y2="${gy}" stroke="#9aa6bf" stroke-width="2" stroke-dasharray="6 6"/>
+    <line x1="${L}" x2="${W-R}" y1="${gy}" y2="${gy}" stroke="#ff5a1f" stroke-width="2" stroke-dasharray="6 5"/>
+    <path d="${d} L${x(s.weeks)},${H-B} L${x(0)},${H-B} Z" fill="url(#ga)"/>
+    <path d="${d}" fill="none" stroke="#2340ff" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${x(s.weeks)}" cy="${y(conv(end))}" r="7" fill="${hit?'#0f9d57':'#2340ff'}" stroke="#fff" stroke-width="3"/>
+    <line id="cross" y1="${T}" y2="${H-B}" stroke="#0e1526" stroke-width="1" opacity="0"/>
+    <circle id="dot" r="6" fill="#fff" stroke="#0e1526" stroke-width="3" opacity="0"/>
+  </svg>`;
+}
+function hover(e){
+  if(!geo) return;
+  const svg=$('lsvg'); if(!svg) return;
+  const r=svg.getBoundingClientRect(), pt=e.touches?e.touches[0]:e;
+  const sx=(pt.clientX-r.left)/r.width*geo.W;
+  const i=Math.max(0,Math.min(geo.weeks,Math.round((sx-geo.L)/(geo.W-geo.L-geo.R)*geo.weeks)));
+  const px=geo.x(i), py=geo.y(conv(geo.path[i]));
+  const c=$('cross'), dt=$('dot'), tip=$('tip');
+  c.setAttribute('x1',px); c.setAttribute('x2',px); c.setAttribute('opacity',.35);
+  dt.setAttribute('cx',px); dt.setAttribute('cy',py); dt.setAttribute('opacity',1);
+  tip.style.left=(px/geo.W*r.width)+'px'; tip.style.top=(py/300*r.height)+'px'; tip.style.opacity=1;
+  tip.textContent=`Week ${i}: ${fmtPace(geo.path[i])} ${per()}`+(i>0?` (−${conv(geo.path[i-1]-geo.path[i]).toFixed(1)} s)`:'');
+}
+function unhover(){ ['cross','dot'].forEach(id=>{const n=$(id); if(n) n.setAttribute('opacity',0);}); $('tip').style.opacity=0; }
+const lw=$('lineWrap');
+lw.addEventListener('mousemove',hover); lw.addEventListener('mouseleave',unhover);
+lw.addEventListener('touchstart',hover,{passive:true}); lw.addEventListener('touchmove',hover,{passive:true});
+
+/* ===== COMPARE ROWS ===== */
+function renderRows(s){
+  const curFin=s.cur*HM_MI, need=curFin-s.goalT;
+  const rows=[2,3,4,5,6].map(r=>{
+    const p=simulate(s.weeks,r,s.speed,s.cur), pace=p[p.length-1], fin=pace*HM_MI;
+    return {r,fin,hit:pace<=s.goalPace,risk:injuryLoad(r,s.speed),saved:curFin-fin};
+  });
+  const cap=1.25;
+  $('rows').innerHTML=rows.map(o=>{
+    const ratio=need>0?Math.max(0,o.saved/need):1;
+    const w=Math.min(cap,ratio)/cap*100, g=1/cap*100;
+    const col=o.risk>7?'var(--caution)':o.hit?'var(--go)':'var(--flag)';
+    const st=o.risk>7?'High injury load'+(o.hit?', but hits goal':'')
+      :o.hit?`Hits goal, ${words(s.goalT-o.fin)} to spare`:`Short by ${words(o.fin-s.goalT)}`;
+    return `<button class="rowbtn" data-r="${o.r}" aria-pressed="${o.r===s.runs}">
+      <span class="nm">${o.r} runs</span>
+      <span class="bar"><i style="width:${w}%;background:${col}"></i><u style="left:${g}%"></u></span>
+      <span class="tm">${hms(o.fin)}</span><span class="st">${st}</span></button>`; }).join('');
+  return rows;
+}
+$('rows').addEventListener('click',e=>{
+  const b=e.target.closest('.rowbtn'); if(!b) return;
+  $('runs').value=b.dataset.r; render();
+});
+
+/* ===== RENDER ===== */
+function render(){
+  const s=state();
+  ['weeks','runs','speed'].forEach(id=>fillSlider($(id)));
+  const path=simulate(s.weeks,s.runs,s.speed,s.cur);
+  const race=path[path.length-1], fin=race*HM_MI, gap=fin-s.goalT, hit=gap<=0;
+
+  $('vWeeks').textContent=s.weeks;
+  $('vRuns').textContent=s.runs;
+  $('vSpeed').textContent=s.speed;
+  $('restNote').textContent=`${7-s.runs} rest day${7-s.runs===1?'':'s'} each week.`+(s.speed>s.runs?' Speed workouts count as runs, so this plan has more speed work than runs.':'');
+
+  setFinish(fin);
+  $('bib').className='bib '+(hit?'hit':'miss');
+  $('bibTag').textContent=hit?'Goal reached':'Goal not reached yet';
+  $('verdict').innerHTML=hit
+    ? `<b>${words(gap)} faster</b> than your ${hms(s.goalT)} goal.`
+    : `<b>${words(gap)} slower</b> than your ${hms(s.goalT)} goal.`;
+
+  const red=s.cur-race, need=(s.cur-s.goalPace)/s.weeks, model=red/s.weeks;
+  $('kPace').textContent=fmtPace(race);
+  $('kPaceN').textContent=`${per()} · goal ${fmtPace(s.goalPace)}`;
+  $('kRed').textContent=conv(red).toFixed(1)+' s';
+  $('kRedN').textContent=`${per()} over ${s.weeks} weeks`;
+  $('kNeed').textContent=(need>0?conv(need):0).toFixed(1)+' s';
+  $('kNeedN').textContent=`${per()} · your plan gives ${conv(model).toFixed(1)}`;
+  const load=injuryLoad(s.runs,s.speed), [rl,rc]=riskInfo(load);
+  $('kRisk').textContent=rl; $('kRisk').style.color=rc;
+  $('kRiskN').textContent=`load score ${load.toFixed(1)}`;
+
+  renderRuler(s,race);
+  renderLine(s,path);
+  const rows=renderRows(s);
+
+  let minW=null;
+  for(let w=2;w<=60;w++){ if(simulate(w,s.runs,s.speed,s.cur)[w]<=s.goalPace){minW=w;break;} }
+  $('i1t').textContent=minW?`You need ${minW} weeks at this effort`:'This effort never reaches the goal';
+  $('i1b').textContent=minW
+    ?(minW<=s.weeks?`You have ${s.weeks-minW} week${s.weeks-minW===1?'':'s'} to spare.`:`You are ${minW-s.weeks} week${minW-s.weeks===1?'':'s'} short. Add weeks or train more.`)
+    :'Gains shrink every week, so this plan levels off above goal pace. Add runs or speed work.';
+
+  const safe=rows.filter(o=>o.hit&&o.risk<=7).sort((a,c)=>a.r-c.r)[0];
+  $('i2t').textContent=safe?`${safe.r} runs a week is enough`:'No safe run count reaches the goal';
+  $('i2b').textContent=safe?`With ${s.speed} speed workout${s.speed===1?'':'s'}, ${safe.r} runs a week finishes in ${hms(safe.fin)} without a high injury load.`
+    :'Try more weeks, another speed workout, or a slower goal time.';
+
+  const pct=need/s.cur*100;
+  $('i3t').textContent=pct>0?`The goal asks for ${pct.toFixed(2)}% faster each week`:'You already run goal pace';
+  $('i3b').textContent=pct>1.5?'Over about 1.5% a week is aggressive. More weeks would make it safer.'
+    :pct>0?'That is a steady, realistic rate of improvement.':'Raise your goal or shorten your timeline to keep training useful.';
+}
+
+/* ===== EVENTS ===== */
+['weeks','runs','speed','cur','goal'].forEach(id=>$(id).addEventListener('input',render));
+function setUnit(u){ unit=u; $('uMi').setAttribute('aria-pressed',u==='mi'); $('uKm').setAttribute('aria-pressed',u==='km'); render(); }
+$('uMi').addEventListener('click',()=>setUnit('mi')); $('uKm').addEventListener('click',()=>setUnit('km'));
+document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+  const [w,r,sp]=c.dataset.p.split(',');
+  $('weeks').value=w; $('runs').value=r; $('speed').value=sp; render(); }));
+$('resetBtn').addEventListener('click',()=>{
+  $('weeks').value=DEFAULTS.weeks;$('runs').value=DEFAULTS.runs;$('speed').value=DEFAULTS.speed;
+  $('cur').value=DEFAULTS.cur;$('goal').value=DEFAULTS.goal; setUnit('mi'); });
+$('exportBtn').addEventListener('click',()=>{
+  const s=state(), p=simulate(s.weeks,s.runs,s.speed,s.cur);
+  let t=`HALF MARATHON PLAN\nWeeks: ${s.weeks} | Runs per week: ${s.runs} | Speed workouts per week: ${s.speed}\n`+
+        `Projected finish: ${hms(p[p.length-1]*HM_MI)} (goal ${hms(s.goalT)})\n\nWeek, Pace (${per()})\n`;
+  p.forEach((v,i)=>t+=`${i}, ${fmtPace(v)}\n`);
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([t],{type:'text/plain'}));
+  a.download='half_marathon_plan.txt'; a.click(); });
+render();
+</script>
+</body>
+</html>
